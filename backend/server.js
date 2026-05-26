@@ -3,6 +3,7 @@
  * Express + Socket.IO + MongoDB
  */
 require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -29,70 +30,129 @@ const server = http.createServer(app);
 const io = initSocket(server);
 app.set('io', io);
 
-// Connect to MongoDB
+// ======================
+// DB CONNECTION
+// ======================
 connectDB();
 
-// Security middleware
-app.use(helmet({
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: false,
-}));
+// ======================
+// SECURITY MIDDLEWARE
+// ======================
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: false,
+  })
+);
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+// ======================
+// CORS CONFIG (FIXED FOR VERCEL + RENDER)
+// ======================
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+];
 
-// Rate limiting
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow REST tools like Postman (no origin)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+// ======================
+// RATE LIMITING
+// ======================
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
-  message: { success: false, message: 'Too many requests, please try again later.' },
+  message: {
+    success: false,
+    message: 'Too many requests, please try again later.',
+  },
 });
+
 app.use('/api/', limiter);
 
-// Body parsing
+// ======================
+// BODY PARSER
+// ======================
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Logging
+// ======================
+// LOGGING
+// ======================
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Health check
+// ======================
+// HEALTH CHECK ROUTE
+// ======================
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: '🚀 TrailTracker Pro API is running',
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'TrailTracker Pro API is running',
+    message: 'TrailTracker Pro API health OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
   });
 });
 
-// API Routes
+// ======================
+// API ROUTES
+// ======================
 app.use('/api/auth', authRoutes);
 app.use('/api/routes', routeRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
+// ======================
+// 404 HANDLER (FIXED SAFE VERSION)
+// ======================
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`,
+  });
 });
 
-// Global error handler
+// ======================
+// GLOBAL ERROR HANDLER
+// ======================
 app.use(errorHandler);
 
+// ======================
+// SERVER START
+// ======================
 const PORT = process.env.PORT || 5000;
+
 server.listen(PORT, () => {
   logger.info(`🚀 TrailTracker Pro server running on port ${PORT}`);
   logger.info(`📡 Environment: ${process.env.NODE_ENV}`);
-  logger.info(`🗺️  Client URL: ${process.env.CLIENT_URL}`);
+  logger.info(`🌍 Client URL: ${process.env.CLIENT_URL}`);
 });
 
+// ======================
+// EXPORTS
+// ======================
 module.exports = { app, server, io };
