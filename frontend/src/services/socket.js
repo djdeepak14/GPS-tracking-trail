@@ -5,8 +5,11 @@ let socket = null;
 export const initSocket = (token) => {
   if (socket?.connected) return socket;
 
-  socket = io('/', {
+  const baseURL = import.meta.env.VITE_API_URL;
+
+  socket = io(baseURL, {
     auth: { token },
+    path: '/socket.io',          
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionAttempts: 5,
