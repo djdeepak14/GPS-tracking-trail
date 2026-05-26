@@ -25,20 +25,39 @@ const makePositionIcon = (color = '#22d3a0') => L.divIcon({
     <div style="position:absolute;inset:0;background:${color};border-radius:50%;border:2.5px solid #080c12;box-shadow:0 0 12px ${color}88;z-index:2;"></div>
     <div style="position:absolute;inset:-8px;background:${color};border-radius:50%;opacity:0;animation:ping2 2.5s ease-out infinite;"></div>
   </div>`,
-  iconSize: [16, 16], iconAnchor: [8, 8],
+  iconSize: [16, 16], 
+  iconAnchor: [8, 8],
 });
 
 const MAP_TILES = {
-  dark:      { url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',   label: 'Dark' },
-  standard:  { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',                          label: 'Street' },
-  satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', label: 'Satellite' },
-  topo:      { url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',                                label: 'Topo' },
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    label: 'Dark',
+    attribution: '&copy; OpenStreetMap &copy; CartoDB'
+  },
+  standard: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    label: 'Street',
+    attribution: '&copy; OpenStreetMap contributors'
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    label: 'Satellite',
+    attribution: '&copy; Esri'
+  },
+  topo: {
+    url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+    label: 'Topo',
+    attribution: '&copy; OpenStreetMap &copy; OpenTopoMap'
+  },
 };
 
 function MapCenterController({ position, auto }) {
   const map = useMap();
   useEffect(() => {
-    if (position && auto) map.setView([position.lat, position.lng], Math.max(map.getZoom(), 15), { animate: true });
+    if (position && auto) {
+      map.setView([position.lat, position.lng], Math.max(map.getZoom(), 15), { animate: true });
+    }
   }, [position, auto, map]);
   return null;
 }
@@ -89,9 +108,15 @@ export default function MapPage() {
   }, [isTracking, isPaused]);
 
   const startGPS = useCallback(() => {
-    if (!navigator.geolocation) { setGpsError('Geolocation not supported'); return; }
+    if (!navigator.geolocation) { 
+      setGpsError('Geolocation not supported'); 
+      return; 
+    }
     const id = navigator.geolocation.watchPosition(
-      pos => { setGpsError(null); addPoint(pos); },
+      pos => { 
+        setGpsError(null); 
+        addPoint(pos); 
+      },
       err => setGpsError(['Access denied','Position unavailable','Timeout'][err.code-1] || 'GPS error'),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
@@ -100,13 +125,19 @@ export default function MapPage() {
   }, [addPoint, setWatchId]);
 
   const stopGPS = () => {
-    if (watchRef.current !== null) { navigator.geolocation.clearWatch(watchRef.current); watchRef.current = null; }
+    if (watchRef.current !== null) { 
+      navigator.geolocation.clearWatch(watchRef.current); 
+      watchRef.current = null; 
+    }
   };
 
   const handleStart = async () => {
     setShowForm(false);
     const r = await startTracking(form);
-    if (r.success) { startGPS(); notify('Tracking started'); }
+    if (r.success) { 
+      startGPS(); 
+      notify('Tracking started'); 
+    }
     else notify(r.message, 'err');
   };
 
@@ -116,8 +147,17 @@ export default function MapPage() {
     if (r.success) notify(`Route saved · ${formatDistance(r.route?.stats?.totalDistance)}`);
   };
 
-  const handlePause = async () => { stopGPS(); await pauseTracking(); notify('Tracking paused'); };
-  const handleResume = async () => { await resumeTracking(); startGPS(); notify('Tracking resumed'); };
+  const handlePause = async () => { 
+    stopGPS(); 
+    await pauseTracking(); 
+    notify('Tracking paused'); 
+  };
+  
+  const handleResume = async () => { 
+    await resumeTracking(); 
+    startGPS(); 
+    notify('Tracking resumed'); 
+  };
 
   const trailColor = activeRoute?.color || user?.preferences?.defaultTrailColor || '#22d3a0';
   const linePos = livePoints.map(p => [p.lat, p.lng]);
@@ -135,36 +175,57 @@ export default function MapPage() {
 
       {/* ── Map ── */}
       <MapContainer center={center} zoom={14} className="w-full h-full" zoomControl={false}>
-        <TileLayer url={MAP_TILES[tile].url} attribution='© OpenStreetMap' />
+        <TileLayer 
+          url={MAP_TILES[tile].url} 
+          attribution={MAP_TILES[tile].attribution} 
+        />
         <MapCenterController position={currentPosition} auto={autoCenter} />
 
         {linePos.length > 1 && (
           <Polyline positions={linePos} color={trailColor} weight={3.5} opacity={0.95} smoothFactor={1.5} />
         )}
+        
         {currentPosition && accuracy && (
-          <Circle center={[currentPosition.lat, currentPosition.lng]} radius={accuracy}
-            color={trailColor} fillColor={trailColor} fillOpacity={0.04} weight={1} opacity={0.25} />
+          <Circle 
+            center={[currentPosition.lat, currentPosition.lng]} 
+            radius={accuracy}
+            color={trailColor} 
+            fillColor={trailColor} 
+            fillOpacity={0.04} 
+            weight={1} 
+            opacity={0.25} 
+          />
         )}
+
         {currentPosition && (
           <Marker position={[currentPosition.lat, currentPosition.lng]} icon={makePositionIcon(trailColor)}>
             <Popup>
               <div className="font-mono text-xs space-y-1 py-1">
                 <p className="font-semibold" style={{ color: 'var(--c-accent)' }}>Current Position</p>
-                <p style={{ color: 'var(--c-text)' }}>{currentPosition.lat.toFixed(6)}, {currentPosition.lng.toFixed(6)}</p>
+                <p style={{ color: 'var(--c-text)' }}>
+                  {currentPosition.lat.toFixed(6)}, {currentPosition.lng.toFixed(6)}
+                </p>
                 {currentAltitude && <p style={{ color: 'var(--c-muted)' }}>Alt: {Math.round(currentAltitude)}m</p>}
-                {currentSpeed  && <p style={{ color: 'var(--c-muted)' }}>Speed: {formatSpeed(currentSpeed)}</p>}
+                {currentSpeed && <p style={{ color: 'var(--c-muted)' }}>Speed: {formatSpeed(currentSpeed)}</p>}
               </div>
             </Popup>
           </Marker>
         )}
+
         {showHistory && histRoutes.map(r => {
           const pts = r.points?.map(p => [p.lat, p.lng]) || [];
-          return pts.length > 1
-            ? <Polyline key={r._id} positions={pts} color={r.color || '#3b82f6'} weight={2} opacity={0.35} />
-            : null;
+          return pts.length > 1 ? (
+            <Polyline 
+              key={r._id} 
+              positions={pts} 
+              color={r.color || '#3b82f6'} 
+              weight={2} 
+              opacity={0.35} 
+            />
+          ) : null;
         })}
       </MapContainer>
-
+      
       {/* ── Toast ── */}
       {toast && (
         <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass px-4 py-2.5
