@@ -46,23 +46,25 @@ app.use(
 );
 
 // ======================
-// CORS CONFIG (FIXED FOR VERCEL + RENDER)
+// CORS CONFIG (Fixed for Vercel + Previews)
 // ======================
 const allowedOrigins = [
   process.env.CLIENT_URL,
   'http://localhost:5173',
+  'https://gps-tracking-trail.vercel.app',
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow REST tools like Postman (no origin)
+      // Allow requests with no origin (like Postman, mobile apps)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
         return callback(null, true);
       }
 
+      console.log('🚫 Blocked by CORS:', origin); // Helpful for debugging
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -127,7 +129,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
 
 // ======================
-// 404 HANDLER (FIXED SAFE VERSION)
+// 404 HANDLER
 // ======================
 app.use((req, res) => {
   res.status(404).json({
