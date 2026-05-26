@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: trailtracker-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: trailtracker
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - trailtracker-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trailtracker-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/trailtracker
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-32chars}
+      JWT_EXPIRE: 7d
+      CLIENT_URL: http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+    networks:
+      - trailtracker-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trailtracker-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - trailtracker-net
+
+networks:
+  trailtracker-net:
+    driver: bridge
+
+volumes:
+  mongo_data:
